@@ -1,4 +1,4 @@
-import admin from '../services/firebase/firebase.js'
+import { auth } from '../services/firebase/firebase.js'
 import User from '../models/User.js'
 
 export async function authenticateUser(req, res, next) {
@@ -31,7 +31,7 @@ export async function authenticateUser(req, res, next) {
       }
     } else {
       try {
-        decodedToken = await admin.auth().verifyIdToken(token)
+        decodedToken = await auth.verifyIdToken(token)
       } catch (tokenError) {
         return res.status(401).json({
           success: false,
