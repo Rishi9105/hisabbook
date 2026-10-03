@@ -11,9 +11,9 @@ import {
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDemoDummyApiKeyForBuildFallback',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'hisabbook-demo.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'hisabbook-demo',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'hisabbook-demo.appspot.com',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'hisabbook-e2542.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'hisabbook-e2542',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'hisabbook-e2542.appspot.com',
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '1234567890',
   appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:1234567890:web:1234567890',
 }

@@ -1,44 +1,53 @@
 import { initializeApp, cert, getApps } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 
+const DEFAULT_PROJECT_ID = 'hisabbook-e2542'
+
 /**
- * Safely parses the FIREBASE_SERVICE_ACCOUNT environment variable.
- * Supports:
- * - JSON object (if set programmatically)
- * - Standard JSON string
- * - Base64 encoded JSON string
- * - Correctly converts escaped '\\n' in private_key to real newline characters '\n'
+ * Safely parses the FIREBASE_SERVICE_ACCOUNT environment variable
+ * or builds credentials from individual environment variables.
  *
  * @param {string|object} serviceAccountInput
  * @returns {object|null}
  */
 function parseServiceAccount(serviceAccountInput) {
-  if (!serviceAccountInput) return null
-
   let parsed = null
 
-  if (typeof serviceAccountInput === 'object') {
-    parsed = serviceAccountInput
-  } else if (typeof serviceAccountInput === 'string') {
-    const trimmed = serviceAccountInput.trim()
-    if (!trimmed) return null
-
-    try {
-      parsed = JSON.parse(trimmed)
-    } catch (e1) {
-      try {
-        const decoded = Buffer.from(trimmed, 'base64').toString('utf8')
-        parsed = JSON.parse(decoded)
-      } catch (e2) {
-        console.warn('Firebase Admin SDK: Unable to parse FIREBASE_SERVICE_ACCOUNT environment variable.')
-        return null
+  if (serviceAccountInput) {
+    if (typeof serviceAccountInput === 'object') {
+      parsed = serviceAccountInput
+    } else if (typeof serviceAccountInput === 'string') {
+      const trimmed = serviceAccountInput.trim()
+      if (trimmed) {
+        try {
+          parsed = JSON.parse(trimmed)
+        } catch (e1) {
+          try {
+            const decoded = Buffer.from(trimmed, 'base64').toString('utf8')
+            parsed = JSON.parse(decoded)
+          } catch (e2) {
+            console.warn('Firebase Admin SDK: Unable to parse FIREBASE_SERVICE_ACCOUNT environment variable.')
+          }
+        }
       }
+    }
+  }
+
+  // Fallback to individual env vars if FIREBASE_SERVICE_ACCOUNT is not set/valid
+  if (!parsed && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+    parsed = {
+      projectId: process.env.FIREBASE_PROJECT_ID || DEFAULT_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY,
     }
   }
 
   if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
     if (typeof parsed.private_key === 'string') {
       parsed.private_key = parsed.private_key.replace(/\\n/g, '\n')
+    }
+    if (typeof parsed.privateKey === 'string') {
+      parsed.privateKey = parsed.privateKey.replace(/\\n/g, '\n')
     }
     return parsed
   }
@@ -53,27 +62,24 @@ const existingApps = getApps()
 if (existingApps.length > 0) {
   firebaseAdminApp = existingApps[0]
 } else {
+  const targetProjectId = process.env.FIREBASE_PROJECT_ID || DEFAULT_PROJECT_ID
   try {
     const serviceAccount = parseServiceAccount(process.env.FIREBASE_SERVICE_ACCOUNT)
 
     if (serviceAccount) {
       firebaseAdminApp = initializeApp({
         credential: cert(serviceAccount),
-      })
-    } else if (process.env.FIREBASE_PROJECT_ID) {
-      firebaseAdminApp = initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID,
+        projectId: serviceAccount.projectId || serviceAccount.project_id || targetProjectId,
       })
     } else {
-      console.warn('Firebase Admin SDK initialized in dev mode (specify FIREBASE_SERVICE_ACCOUNT or FIREBASE_PROJECT_ID in production)')
       firebaseAdminApp = initializeApp({
-        projectId: 'hisabbook-dev',
+        projectId: targetProjectId,
       })
     }
   } catch (error) {
     console.error('Firebase Admin SDK initialization warning:', error.message)
     firebaseAdminApp = initializeApp({
-      projectId: 'hisabbook-dev',
+      projectId: targetProjectId,
     })
   }
 }

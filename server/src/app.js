@@ -25,11 +25,26 @@ const apiLimiter = rateLimit({
 
 app.use('/api', apiLimiter)
 
-// Strict CORS Configuration using CLIENT_URL environment variable
+// Strict CORS Configuration allowing production Vercel domain and configured CLIENT_URL
+const configuredClientUrl = (process.env.CLIENT_URL || 'https://hisabbook-sigma.vercel.app').trim().replace(/\/+$/, '')
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true)
+      const cleanOrigin = origin.replace(/\/+$/, '')
+      if (
+        cleanOrigin === configuredClientUrl ||
+        cleanOrigin === 'https://hisabbook-sigma.vercel.app' ||
+        cleanOrigin === 'http://localhost:5173'
+      ) {
+        return callback(null, true)
+      }
+      return callback(null, false)
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 )
 

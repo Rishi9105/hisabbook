@@ -1,8 +1,12 @@
 import axios from 'axios'
 import { auth } from './firebase'
 
+const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const trimmedUrl = rawApiUrl.replace(/\/+$/, '')
+const baseURL = trimmedUrl.endsWith('/api') ? trimmedUrl : `${trimmedUrl}/api`
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -15,10 +19,15 @@ api.interceptors.request.use(
       const currentUser = auth.currentUser
       if (currentUser) {
         const token = await currentUser.getIdToken()
-        config.headers.Authorization = `Bearer ${token}`
+        if (config.headers && typeof config.headers.set === 'function') {
+          config.headers.set('Authorization', `Bearer ${token}`)
+        } else {
+          config.headers = config.headers || {}
+          config.headers['Authorization'] = `Bearer ${token}`
+        }
       }
     } catch (error) {
-      console.error('Failed to attach auth token to request:', error)
+      console.error('Failed to attach auth token to request:', error.message)
     }
     return config
   },
