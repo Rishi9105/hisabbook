@@ -56,11 +56,14 @@ function parseServiceAccount(serviceAccountInput) {
 }
 
 let firebaseAdminApp = null
+let _credentialed = false
 
 const existingApps = getApps()
 
 if (existingApps.length > 0) {
   firebaseAdminApp = existingApps[0]
+  // Assume previously initialized app was credentialed
+  _credentialed = true
 } else {
   const targetProjectId = process.env.FIREBASE_PROJECT_ID || DEFAULT_PROJECT_ID
   try {
@@ -71,22 +74,47 @@ if (existingApps.length > 0) {
         credential: cert(serviceAccount),
         projectId: serviceAccount.projectId || serviceAccount.project_id || targetProjectId,
       })
+      _credentialed = true
+      console.log(
+        '[Firebase Admin] Initialized with service account credentials for project:',
+        serviceAccount.projectId || serviceAccount.project_id || targetProjectId,
+      )
     } else {
+      // CRITICAL: No service account credentials found.
+      // verifyIdToken() WILL FAIL in production without Application Default Credentials.
+      // Set FIREBASE_SERVICE_ACCOUNT (JSON or base64) or FIREBASE_CLIENT_EMAIL +
+      // FIREBASE_PRIVATE_KEY on Render to fix the 401 authentication failures.
+      console.error(
+        '[Firebase Admin] WARNING: No service account credentials found. ' +
+        'FIREBASE_SERVICE_ACCOUNT env var is missing or could not be parsed. ' +
+        'Token verification will fail in production environments without GCP Application Default Credentials. ' +
+        'Set FIREBASE_SERVICE_ACCOUNT on Render to resolve 401 authentication errors.',
+      )
       firebaseAdminApp = initializeApp({
         projectId: targetProjectId,
       })
+      _credentialed = false
     }
   } catch (error) {
-    console.error('Firebase Admin SDK initialization warning:', error.message)
+    console.error('[Firebase Admin] SDK initialization error:', error.message)
     firebaseAdminApp = initializeApp({
       projectId: targetProjectId,
     })
+    _credentialed = false
   }
 }
 
 export const auth = getAuth(firebaseAdminApp)
 
+/**
+ * True when Firebase Admin was initialized with explicit service account
+ * credentials (cert()). False means the app is relying on Application Default
+ * Credentials, which will not be available on Render — causing 401 failures.
+ */
+export const isCredentialed = _credentialed
+
 export default {
   auth: () => auth,
   app: firebaseAdminApp,
+  isCredentialed: _credentialed,
 }
